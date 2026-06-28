@@ -7,7 +7,7 @@ plane on a 64x32 display; never raises on bad/empty data — shows a tidy frame 
 load("encoding/json.star", "json")
 load("http.star", "http")
 load("math.star", "math")
-load("render.star", "render")
+load("render.star", "canvas", "render")
 load("schema.star", "schema")
 
 API_URL = "https://api.airplanes.live/v2/point"
@@ -30,7 +30,14 @@ ACCENT = "#ffb733"
 DETAIL = "#8aa0c0"
 EMERG = "#ff3b30"
 
-GLYPH = 10  # px box for the plane icon
+GLYPH = 10  # px box for the plane icon (1x); scaled by `scale` at render time
+
+# Fonts per render scale: 1x for 64x32, 2x for 128x64 (a 2x/"wide" display).
+# (big = callsign/title, small = detail lines.)
+_FONTS = {
+    1: {"big": "tb-8", "small": "tom-thumb"},
+    2: {"big": "6x13", "small": "5x8"},
+}
 
 # Top-view airliner pointing up (north), rotated in-SVG by heading. Kept within a
 # center circle of the 16x16 viewBox so any rotation never clips the corners.
@@ -130,9 +137,9 @@ def _fmt_dist(nm, speed_unit):
         return _one_dp(nm * NM_TO_MI) + "mi"
     return _one_dp(nm) + "nm"
 
-def _glyph(track, color):
+def _glyph(track, color, scale):
     angle = int(math.round(track)) if _isnum(track) else 0  # heading up = north
-    return render.Image(src = _PLANE_SVG % (angle, color), width = GLYPH, height = GLYPH)
+    return render.Image(src = _PLANE_SVG % (angle, color), width = GLYPH * scale, height = GLYPH * scale)
 
 def _select(aclist, lat, lon, only_airborne, highlight_emergency):
     best = None
@@ -162,14 +169,15 @@ def _select(aclist, lat, lon, only_airborne, highlight_emergency):
 
     return emerg if emerg != None else best
 
-def _line(text, font, color):
-    # Centered when it fits in 64px, scrolls horizontally when it overflows.
-    return render.Marquee(width = 64, align = "center", child = render.Text(text, font = font, color = color))
+def _line(text, font, color, scale):
+    # Centered when it fits the display width, scrolls horizontally when it overflows.
+    return render.Marquee(width = 64 * scale, align = "center", child = render.Text(text, font = font, color = color))
 
-def _render_aircraft(target, alt_unit, speed_unit, highlight_emergency):
+def _render_aircraft(target, alt_unit, speed_unit, highlight_emergency, scale):
     dist, brg, ac = target
     em = highlight_emergency and _is_emergency(ac)
     accent = EMERG if em else ACCENT
+    fonts = _FONTS[scale]
 
     type_code = ac.get("t")
     alt = _fmt_alt(ac, alt_unit)
@@ -183,11 +191,11 @@ def _render_aircraft(target, alt_unit, speed_unit, highlight_emergency):
         if spd:
             line3 += " · " + spd
 
-    children = [_line(_callsign(ac), "tb-8", accent)]
+    children = [_line(_callsign(ac), fonts["big"], accent, scale)]
     if line2:
-        children.append(_line(line2, "tom-thumb", DETAIL))
-    children.append(_line(line3, "tom-thumb", EMERG if em else DETAIL))
-    children.append(_glyph(ac.get("track"), accent))
+        children.append(_line(line2, fonts["small"], DETAIL, scale))
+    children.append(_line(line3, fonts["small"], EMERG if em else DETAIL, scale))
+    children.append(_glyph(ac.get("track"), accent, scale))
 
     return render.Root(
         child = render.Column(
@@ -197,11 +205,12 @@ def _render_aircraft(target, alt_unit, speed_unit, highlight_emergency):
         ),
     )
 
-def _frame_message(title, sub):
-    children = [render.Text(title, font = "tb-8", color = DETAIL)]
+def _frame_message(title, sub, scale):
+    fonts = _FONTS[scale]
+    children = [render.Text(title, font = fonts["big"], color = DETAIL)]
     if sub:
-        children.append(render.Text(sub, font = "tom-thumb", color = DETAIL))
-    children.append(_glyph(None, DETAIL))
+        children.append(render.Text(sub, font = fonts["small"], color = DETAIL))
+    children.append(_glyph(None, DETAIL, scale))
     return render.Root(
         child = render.Box(
             child = render.Column(
@@ -213,6 +222,8 @@ def _frame_message(title, sub):
     )
 
 def main(config):
+    scale = 2 if canvas.is2x() else 1
+
     loc = json.decode(config.get("location", DEFAULT_LOCATION))
     if type(loc) != "dict":
         loc = {}
@@ -231,18 +242,18 @@ def main(config):
     url = "%s/%s/%s/%d" % (API_URL, lat, lon, radius)
     resp = http.get(url, ttl_seconds = TTL_SECONDS)
     if resp.status_code != 200:
-        return _frame_message("NO SIGNAL", None)
+        return _frame_message("NO SIGNAL", None, scale)
 
     data = resp.json()
     aclist = data.get("ac") if type(data) == "dict" else None
     if type(aclist) != "list":
-        return [] if skip_if_empty else _frame_message("NO AIRCRAFT", "in range")
+        return [] if skip_if_empty else _frame_message("NO AIRCRAFT", "in range", scale)
 
     target = _select(aclist, lat, lon, only_airborne, highlight_emergency)
     if target == None:
-        return [] if skip_if_empty else _frame_message("NO AIRCRAFT", "in range")
+        return [] if skip_if_empty else _frame_message("NO AIRCRAFT", "in range", scale)
 
-    return _render_aircraft(target, alt_unit, speed_unit, highlight_emergency)
+    return _render_aircraft(target, alt_unit, speed_unit, highlight_emergency, scale)
 
 def get_schema():
     units_alt = [

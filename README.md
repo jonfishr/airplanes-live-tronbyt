@@ -59,6 +59,9 @@ Drop `overhead.star` and `manifest.yaml` into your Tronbyt server's community-ap
 same layout Tidbyt community apps use), then add **Overhead** to a device and configure it. Tronbyt
 serves the same Pixlet render/schema/http API, so no changes are needed.
 
+Overhead renders at **64×32** and also supports **128×64** (2x / "wide") displays — it detects the
+display via `canvas.is2x()` and scales fonts and the plane glyph accordingly.
+
 ## Data source & terms
 
 Aircraft data is provided by [airplanes.live](https://airplanes.live) via its public
