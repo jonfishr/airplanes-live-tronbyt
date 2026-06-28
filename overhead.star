@@ -226,6 +226,7 @@ def main(config):
     speed_unit = config.get("speed_units", "kt")
     only_airborne = config.bool("only_airborne", False)
     highlight_emergency = config.bool("highlight_emergency", True)
+    skip_if_empty = config.bool("skip_if_empty", False)
 
     url = "%s/%s/%s/%d" % (API_URL, lat, lon, radius)
     resp = http.get(url, ttl_seconds = TTL_SECONDS)
@@ -235,11 +236,11 @@ def main(config):
     data = resp.json()
     aclist = data.get("ac") if type(data) == "dict" else None
     if type(aclist) != "list":
-        return _frame_message("NO AIRCRAFT", "in range")
+        return [] if skip_if_empty else _frame_message("NO AIRCRAFT", "in range")
 
     target = _select(aclist, lat, lon, only_airborne, highlight_emergency)
     if target == None:
-        return _frame_message("NO AIRCRAFT", "in range")
+        return [] if skip_if_empty else _frame_message("NO AIRCRAFT", "in range")
 
     return _render_aircraft(target, alt_unit, speed_unit, highlight_emergency)
 
@@ -297,6 +298,13 @@ def get_schema():
                 desc = "Surface any 7500/7600/7700 squawk ahead of the closest plane.",
                 icon = "triangleExclamation",
                 default = True,
+            ),
+            schema.Toggle(
+                id = "skip_if_empty",
+                name = "Hide when no aircraft",
+                desc = "Skip this app in rotation when no aircraft are in range.",
+                icon = "eyeSlash",
+                default = False,
             ),
         ],
     )
