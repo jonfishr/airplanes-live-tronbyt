@@ -1,0 +1,9 @@
+---
+id: overhead
+name: Overhead
+summary: Closest aircraft overhead
+desc: >-
+  Shows the single closest aircraft to your location using an Airplanes.live
+  feed: callsign, type, altitude, distance, bearing, speed, and a plane icon
+  rotated to its heading. Surfaces emergency squawks (7500/7600/7700) first.
+author: jonfishr
