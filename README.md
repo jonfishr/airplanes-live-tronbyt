@@ -79,6 +79,17 @@ By using this app you agree to the airplanes.live [API terms of use](https://air
 airplanes.live is a community-funded network of volunteer feeders. If you rely on this
 data, please [support them](https://airplanes.live/donate/).
 
+## License
+
+The **code** in this repository is released under the [MIT License](LICENSE) — free for
+anyone to use, modify, and redistribute.
+
+The MIT License covers this software only. It does **not** grant any rights to the aircraft
+**data**, which is provided separately by airplanes.live under its own
+[API terms of use](https://airplanes.live/api-guide/) (personal, non-commercial use; 1 request/second;
+no SLA). Using the data is an agreement between you and airplanes.live — see
+[Data source & terms](#data-source--terms) above.
+
 ## v2 ideas (out of scope)
 
 - Multiple aircraft / a scrolling list
